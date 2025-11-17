@@ -117,7 +117,9 @@ export default function RegisterPage() {
 
       // Redirect based on user type
       if (formData.userType === 'merchant') {
-        toast.info('Your merchant account is pending approval')
+        toast('Your merchant account is pending approval', {
+          icon: 'ℹ️',
+        })
         router.push('/dashboard')
       } else {
         router.push('/')
@@ -277,7 +279,7 @@ export default function RegisterPage() {
                   required
                   minLength={6}
                   className="w-full pl-10 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
-                  placeholder=""""""""""
+                  placeholder="••••••••"
                 />
               </div>
             </div>
@@ -298,7 +300,7 @@ export default function RegisterPage() {
                   required
                   minLength={6}
                   className="w-full pl-10 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
-                  placeholder=""""""""""
+                  placeholder="••••••••"
                 />
               </div>
             </div>

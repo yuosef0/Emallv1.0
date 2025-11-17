@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import toast from 'react-hot-toast'
-import QRCode from 'qrcode'
+import { generatePickupCode, generatePickupQRCodeToCanvas } from '@/lib/qrcode'
 
 interface CartItem {
   product_id: string
@@ -160,15 +160,6 @@ export default function CartPage() {
     }
   }
 
-  const generatePickupCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    let code = ''
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return code
-  }
-
   const handleGeneratePickupCode = async (merchantId: string) => {
     setGeneratingCode(merchantId)
 
@@ -248,14 +239,7 @@ export default function CartPage() {
       // Generate QR code
       try {
         const qrCanvas = document.createElement('canvas')
-        await QRCode.toCanvas(qrCanvas, pickupCode, {
-          width: 300,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
-        })
+        await generatePickupQRCodeToCanvas(qrCanvas, pickupCode, 300)
         const qrDataUrl = qrCanvas.toDataURL()
         setQrDataUrls(prev => ({ ...prev, [merchantId]: qrDataUrl }))
       } catch (qrError) {

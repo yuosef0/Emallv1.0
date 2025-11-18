@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from 'sonner'
 
 export const metadata: Metadata = {
   title: "EMall - Local Merchants Marketplace",
@@ -15,6 +16,7 @@ export default function RootLayout({
     <html lang="en">
       <body className="antialiased">
         {children}
+        <Toaster position="top-right" richColors expand={true} />
       </body>
     </html>
   );

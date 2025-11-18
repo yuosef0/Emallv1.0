@@ -1,7 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
+import DashboardHeader from '@/components/layout/DashboardHeader'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,52 +80,8 @@ export default async function MerchantDashboard() {
           </div>
         )}
 
-        {/* Header Card */}
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              {merchant.logo_url ? (
-                <Image
-                  src={merchant.logo_url}
-                  alt={merchant.brand_name}
-                  width={64}
-                  height={64}
-                  className="rounded-full"
-                />
-              ) : (
-                <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center text-3xl">
-                  🏪
-                </div>
-              )}
-              <div>
-                <h1 className="text-2xl font-bold text-gray-800">{merchant.brand_name}</h1>
-                {merchant.brand_name_ar && (
-                  <div className="text-gray-500">{merchant.brand_name_ar}</div>
-                )}
-                <div className="text-sm text-gray-600 mt-1 flex items-center gap-2">
-                  <span>📍</span>
-                  {merchant.address}
-                  {merchant.city && `, ${merchant.city}`}
-                </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-500 mb-1">Subscription Tier</div>
-              <div className={`inline-block px-4 py-2 rounded-full font-bold text-sm ${
-                merchant.subscription_tiers?.priority_level === 1
-                  ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white'
-                  : merchant.subscription_tiers?.priority_level === 2
-                  ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white'
-                  : 'bg-gradient-to-r from-blue-500 to-cyan-600 text-white'
-              }`}>
-                {merchant.subscription_tiers?.name?.toUpperCase() || 'NO TIER'}
-              </div>
-              {merchant.subscription_status === 'active' && (
-                <div className="text-xs text-green-600 mt-1 font-semibold">✓ Active</div>
-              )}
-            </div>
-          </div>
-        </div>
+        {/* Header Card with Notification Bell */}
+        <DashboardHeader merchant={merchant} userId={user.id} />
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

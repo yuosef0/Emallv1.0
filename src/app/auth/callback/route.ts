@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
   console.log('Auth callback triggered with code:', code ? 'present' : 'missing')
 
   if (code) {
-    const cookieStore: Record<string, string> = {}
+    const cookieStore = await cookies()
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,13 +19,25 @@ export async function GET(request: NextRequest) {
       {
         cookies: {
           get(name: string) {
-            return cookieStore[name] || request.cookies.get(name)?.value
+            return cookieStore.get(name)?.value
           },
           set(name: string, value: string, options: CookieOptions) {
-            cookieStore[name] = value
+            try {
+              cookieStore.set(name, value, options)
+            } catch (error) {
+              // The `set` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
           },
           remove(name: string, options: CookieOptions) {
-            delete cookieStore[name]
+            try {
+              cookieStore.set(name, '', options)
+            } catch (error) {
+              // The `delete` method was called from a Server Component.
+              // This can be ignored if you have middleware refreshing
+              // user sessions.
+            }
           },
         },
       }
@@ -79,40 +92,18 @@ export async function GET(request: NextRequest) {
         console.log('✓ Profile created successfully')
       }
 
-      // Set cookies in response
-      const response = NextResponse.redirect(`${origin}/`)
-
-      Object.entries(cookieStore).forEach(([name, value]) => {
-        response.cookies.set(name, value, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          maxAge: 60 * 60 * 24 * 7, // 7 days
-        })
-      })
-
-      return response
+      // Redirect new OAuth users to homepage
+      return NextResponse.redirect(`${origin}/`)
     }
 
     console.log('✓ Existing profile found, user_type:', existingProfile.user_type)
 
-    // Set cookies in response
+    // Redirect based on user type
     const redirectUrl = (existingProfile.user_type === 'merchant' || existingProfile.user_type === 'admin')
       ? `${origin}/dashboard`
       : `${origin}/`
 
-    const response = NextResponse.redirect(redirectUrl)
-
-    Object.entries(cookieStore).forEach(([name, value]) => {
-      response.cookies.set(name, value, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-      })
-    })
-
-    return response
+    return NextResponse.redirect(redirectUrl)
   }
 
   // No code present, redirect to login

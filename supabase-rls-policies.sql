@@ -3,13 +3,85 @@
 -- ============================================
 -- Run this script in Supabase SQL Editor
 -- This will secure your database tables
+--
+-- IMPORTANT: This script will DROP existing policies
+-- and recreate them to ensure consistency
+
+-- ============================================
+-- STEP 1: DROP ALL EXISTING POLICIES
+-- ============================================
+
+-- Drop profiles policies
+DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can create own profile" ON profiles;
+
+-- Drop merchants policies
+DROP POLICY IF EXISTS "Anyone can view approved merchants" ON merchants;
+DROP POLICY IF EXISTS "Merchants can view own data" ON merchants;
+DROP POLICY IF EXISTS "Merchants can update own data" ON merchants;
+DROP POLICY IF EXISTS "Users can create merchant profile" ON merchants;
+DROP POLICY IF EXISTS "Admins can view all merchants" ON merchants;
+DROP POLICY IF EXISTS "Admins can update merchants" ON merchants;
+
+-- Drop products policies
+DROP POLICY IF EXISTS "Anyone can view active products" ON products;
+DROP POLICY IF EXISTS "Merchants can view own products" ON products;
+DROP POLICY IF EXISTS "Merchants can create products" ON products;
+DROP POLICY IF EXISTS "Merchants can update own products" ON products;
+DROP POLICY IF EXISTS "Merchants can delete own products" ON products;
+
+-- Drop orders policies
+DROP POLICY IF EXISTS "Customers can view own orders" ON orders;
+DROP POLICY IF EXISTS "Merchants can view own orders" ON orders;
+DROP POLICY IF EXISTS "Customers can create orders" ON orders;
+DROP POLICY IF EXISTS "Merchants can update order status" ON orders;
+
+-- Drop order_items policies
+DROP POLICY IF EXISTS "Users can view own order items" ON order_items;
+DROP POLICY IF EXISTS "Allow order items creation" ON order_items;
+
+-- Drop notifications policies
+DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
+DROP POLICY IF EXISTS "Users can update own notifications" ON notifications;
+DROP POLICY IF EXISTS "Users can delete own notifications" ON notifications;
+
+-- Drop merchant_categories policies
+DROP POLICY IF EXISTS "Anyone can view active categories" ON merchant_categories;
+DROP POLICY IF EXISTS "Merchants can view own categories" ON merchant_categories;
+DROP POLICY IF EXISTS "Merchants can create categories" ON merchant_categories;
+DROP POLICY IF EXISTS "Merchants can update own categories" ON merchant_categories;
+DROP POLICY IF EXISTS "Merchants can delete own categories" ON merchant_categories;
+
+-- Drop pickup_rewards policies
+DROP POLICY IF EXISTS "Customers can view own rewards" ON pickup_rewards;
+DROP POLICY IF EXISTS "Merchants can view store rewards" ON pickup_rewards;
+
+-- Drop subscription_tiers policies
+DROP POLICY IF EXISTS "Anyone can view subscription tiers" ON subscription_tiers;
+
+-- ============================================
+-- STEP 2: ENABLE RLS ON ALL TABLES
+-- ============================================
+
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merchants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merchant_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pickup_rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscription_tiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE webhook_logs ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
+-- STEP 3: CREATE NEW POLICIES
+-- ============================================
 
 -- ============================================
 -- 1. PROFILES TABLE
 -- ============================================
-
--- Enable RLS
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- Users can view their own profile
 CREATE POLICY "Users can view own profile"
@@ -29,8 +101,6 @@ WITH CHECK (auth.uid() = id);
 -- ============================================
 -- 2. MERCHANTS TABLE
 -- ============================================
-
-ALTER TABLE merchants ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can view approved merchants
 CREATE POLICY "Anyone can view approved merchants"
@@ -77,8 +147,6 @@ USING (
 -- ============================================
 -- 3. PRODUCTS TABLE
 -- ============================================
-
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can view active products from approved merchants
 CREATE POLICY "Anyone can view active products"
@@ -142,8 +210,6 @@ USING (
 -- 4. ORDERS TABLE
 -- ============================================
 
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-
 -- Customers can view their own orders
 CREATE POLICY "Customers can view own orders"
 ON orders FOR SELECT
@@ -180,8 +246,6 @@ USING (
 -- 5. ORDER_ITEMS TABLE
 -- ============================================
 
-ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-
 -- Users can view items from their orders
 CREATE POLICY "Users can view own order items"
 ON order_items FOR SELECT
@@ -215,8 +279,6 @@ WITH CHECK (
 -- 6. NOTIFICATIONS TABLE
 -- ============================================
 
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-
 -- Users can view their own notifications
 CREATE POLICY "Users can view own notifications"
 ON notifications FOR SELECT
@@ -238,8 +300,6 @@ USING (user_id = auth.uid());
 -- ============================================
 -- 7. MERCHANT_CATEGORIES TABLE
 -- ============================================
-
-ALTER TABLE merchant_categories ENABLE ROW LEVEL SECURITY;
 
 -- Anyone can view active categories
 CREATE POLICY "Anyone can view active categories"
@@ -294,8 +354,6 @@ USING (
 -- 8. PICKUP_REWARDS TABLE
 -- ============================================
 
-ALTER TABLE pickup_rewards ENABLE ROW LEVEL SECURITY;
-
 -- Customers can view their own rewards
 CREATE POLICY "Customers can view own rewards"
 ON pickup_rewards FOR SELECT
@@ -316,8 +374,6 @@ USING (
 -- 9. SUBSCRIPTION_TIERS TABLE
 -- ============================================
 
-ALTER TABLE subscription_tiers ENABLE ROW LEVEL SECURITY;
-
 -- Everyone can view subscription tiers (public info)
 CREATE POLICY "Anyone can view subscription tiers"
 ON subscription_tiers FOR SELECT
@@ -326,8 +382,6 @@ USING (true);
 -- ============================================
 -- 10. WEBHOOK_LOGS TABLE
 -- ============================================
-
-ALTER TABLE webhook_logs ENABLE ROW LEVEL SECURITY;
 
 -- Only service role can access webhook logs
 -- (No user-level policies needed)
@@ -354,7 +408,7 @@ ALTER TABLE webhook_logs ENABLE ROW LEVEL SECURITY;
 -- USING (customer_id = auth.uid());
 
 -- ============================================
--- DONE!
+-- VERIFICATION
 -- ============================================
 
 -- Verify RLS is enabled on all tables
@@ -365,3 +419,12 @@ SELECT
 FROM pg_tables
 WHERE schemaname = 'public'
 ORDER BY tablename;
+
+-- ============================================
+-- DONE!
+-- ============================================
+-- All tables are now secured with Row Level Security
+-- Users can only access their own data
+-- Merchants can only access their store data
+-- Admins can access all data
+-- Public can view approved/active content only

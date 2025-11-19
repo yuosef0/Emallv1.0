@@ -64,16 +64,59 @@ DROP POLICY IF EXISTS "Anyone can view subscription tiers" ON subscription_tiers
 -- STEP 2: ENABLE RLS ON ALL TABLES
 -- ============================================
 
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE merchants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE merchant_categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE pickup_rewards ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subscription_tiers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE webhook_logs ENABLE ROW LEVEL SECURITY;
+-- Enable RLS only on existing tables
+DO $$
+BEGIN
+  -- Profiles
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'profiles') THEN
+    ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+  END IF;
+
+  -- Merchants
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'merchants') THEN
+    ALTER TABLE merchants ENABLE ROW LEVEL SECURITY;
+  END IF;
+
+  -- Products
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'products') THEN
+    ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+  END IF;
+
+  -- Orders
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'orders') THEN
+    ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+  END IF;
+
+  -- Order Items
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'order_items') THEN
+    ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+  END IF;
+
+  -- Notifications
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'notifications') THEN
+    ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+  END IF;
+
+  -- Merchant Categories
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'merchant_categories') THEN
+    ALTER TABLE merchant_categories ENABLE ROW LEVEL SECURITY;
+  END IF;
+
+  -- Pickup Rewards
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pickup_rewards') THEN
+    ALTER TABLE pickup_rewards ENABLE ROW LEVEL SECURITY;
+  END IF;
+
+  -- Subscription Tiers
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'subscription_tiers') THEN
+    ALTER TABLE subscription_tiers ENABLE ROW LEVEL SECURITY;
+  END IF;
+
+  -- Webhook Logs (if exists)
+  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'webhook_logs') THEN
+    ALTER TABLE webhook_logs ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
 -- ============================================
 -- STEP 3: CREATE NEW POLICIES
@@ -380,11 +423,12 @@ ON subscription_tiers FOR SELECT
 USING (true);
 
 -- ============================================
--- 10. WEBHOOK_LOGS TABLE
+-- 10. WEBHOOK_LOGS TABLE (Optional - if exists)
 -- ============================================
 
 -- Only service role can access webhook logs
 -- (No user-level policies needed)
+-- This table may not exist in all databases
 
 -- ============================================
 -- 11. REVIEWS TABLE (if exists)

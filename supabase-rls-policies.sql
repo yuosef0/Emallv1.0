@@ -1,43 +1,48 @@
 -- ============================================
 -- EMall - Row Level Security Policies
 -- ============================================
+-- Based on the actual database schema
 -- Run this script in Supabase SQL Editor
--- This will secure your database tables
---
--- IMPORTANT: This script will DROP existing policies
--- and recreate them to ensure consistency
+-- This will update/fix RLS policies
 
 -- ============================================
 -- STEP 1: DROP ALL EXISTING POLICIES
 -- ============================================
 
 -- Drop profiles policies
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON profiles;
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
 DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 DROP POLICY IF EXISTS "Users can create own profile" ON profiles;
 
 -- Drop merchants policies
+DROP POLICY IF EXISTS "Approved active merchants are viewable by everyone" ON merchants;
 DROP POLICY IF EXISTS "Anyone can view approved merchants" ON merchants;
 DROP POLICY IF EXISTS "Merchants can view own data" ON merchants;
 DROP POLICY IF EXISTS "Merchants can update own data" ON merchants;
 DROP POLICY IF EXISTS "Users can create merchant profile" ON merchants;
 DROP POLICY IF EXISTS "Admins can view all merchants" ON merchants;
 DROP POLICY IF EXISTS "Admins can update merchants" ON merchants;
+DROP POLICY IF EXISTS "Admins can manage all merchants" ON merchants;
 
 -- Drop products policies
+DROP POLICY IF EXISTS "Active products are viewable by everyone" ON products;
 DROP POLICY IF EXISTS "Anyone can view active products" ON products;
 DROP POLICY IF EXISTS "Merchants can view own products" ON products;
 DROP POLICY IF EXISTS "Merchants can create products" ON products;
 DROP POLICY IF EXISTS "Merchants can update own products" ON products;
 DROP POLICY IF EXISTS "Merchants can delete own products" ON products;
+DROP POLICY IF EXISTS "Merchants can manage own products" ON products;
 
 -- Drop orders policies
+DROP POLICY IF EXISTS "Users can view own orders" ON orders;
 DROP POLICY IF EXISTS "Customers can view own orders" ON orders;
 DROP POLICY IF EXISTS "Merchants can view own orders" ON orders;
 DROP POLICY IF EXISTS "Customers can create orders" ON orders;
 DROP POLICY IF EXISTS "Merchants can update order status" ON orders;
 
 -- Drop order_items policies
+DROP POLICY IF EXISTS "Order items viewable through orders" ON order_items;
 DROP POLICY IF EXISTS "Users can view own order items" ON order_items;
 DROP POLICY IF EXISTS "Allow order items creation" ON order_items;
 
@@ -60,63 +65,26 @@ DROP POLICY IF EXISTS "Merchants can view store rewards" ON pickup_rewards;
 -- Drop subscription_tiers policies
 DROP POLICY IF EXISTS "Anyone can view subscription tiers" ON subscription_tiers;
 
+-- Drop reviews policies
+DROP POLICY IF EXISTS "Reviews are viewable by everyone" ON reviews;
+DROP POLICY IF EXISTS "Users can create reviews for their orders" ON reviews;
+DROP POLICY IF EXISTS "Users can create reviews" ON reviews;
+DROP POLICY IF EXISTS "Users can update own reviews" ON reviews;
+
 -- ============================================
 -- STEP 2: ENABLE RLS ON ALL TABLES
 -- ============================================
 
--- Enable RLS only on existing tables
-DO $$
-BEGIN
-  -- Profiles
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'profiles') THEN
-    ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-  END IF;
-
-  -- Merchants
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'merchants') THEN
-    ALTER TABLE merchants ENABLE ROW LEVEL SECURITY;
-  END IF;
-
-  -- Products
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'products') THEN
-    ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-  END IF;
-
-  -- Orders
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'orders') THEN
-    ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-  END IF;
-
-  -- Order Items
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'order_items') THEN
-    ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
-  END IF;
-
-  -- Notifications
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'notifications') THEN
-    ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-  END IF;
-
-  -- Merchant Categories
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'merchant_categories') THEN
-    ALTER TABLE merchant_categories ENABLE ROW LEVEL SECURITY;
-  END IF;
-
-  -- Pickup Rewards
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'pickup_rewards') THEN
-    ALTER TABLE pickup_rewards ENABLE ROW LEVEL SECURITY;
-  END IF;
-
-  -- Subscription Tiers
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'subscription_tiers') THEN
-    ALTER TABLE subscription_tiers ENABLE ROW LEVEL SECURITY;
-  END IF;
-
-  -- Webhook Logs (if exists)
-  IF EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'webhook_logs') THEN
-    ALTER TABLE webhook_logs ENABLE ROW LEVEL SECURITY;
-  END IF;
-END $$;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merchants ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE merchant_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE pickup_rewards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE subscription_tiers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
 -- STEP 3: CREATE NEW POLICIES
@@ -126,18 +94,18 @@ END $$;
 -- 1. PROFILES TABLE
 -- ============================================
 
--- Users can view their own profile
-CREATE POLICY "Users can view own profile"
+-- Everyone can view all profiles (public info)
+CREATE POLICY "Public profiles are viewable by everyone"
 ON profiles FOR SELECT
-USING (auth.uid() = id);
+USING (true);
 
 -- Users can update their own profile
 CREATE POLICY "Users can update own profile"
 ON profiles FOR UPDATE
 USING (auth.uid() = id);
 
--- Allow profile creation (for registration)
-CREATE POLICY "Users can create own profile"
+-- Users can insert their own profile (for registration)
+CREATE POLICY "Users can insert own profile"
 ON profiles FOR INSERT
 WITH CHECK (auth.uid() = id);
 
@@ -145,40 +113,33 @@ WITH CHECK (auth.uid() = id);
 -- 2. MERCHANTS TABLE
 -- ============================================
 
--- Anyone can view approved merchants
-CREATE POLICY "Anyone can view approved merchants"
+-- Everyone can view approved, active, non-banned merchants
+CREATE POLICY "Approved active merchants are viewable by everyone"
 ON merchants FOR SELECT
-USING (approval_status = 'approved' AND is_banned = false);
+USING (
+  approval_status = 'approved'
+  AND subscription_status = 'active'
+  AND is_banned = FALSE
+);
 
--- Merchants can view their own data
+-- Merchants can view their own data (even if not approved)
 CREATE POLICY "Merchants can view own data"
 ON merchants FOR SELECT
-USING (user_id = auth.uid());
+USING (auth.uid() = user_id);
 
 -- Merchants can update their own data
 CREATE POLICY "Merchants can update own data"
 ON merchants FOR UPDATE
-USING (user_id = auth.uid());
+USING (auth.uid() = user_id);
 
--- Merchants can create their profile
-CREATE POLICY "Users can create merchant profile"
+-- Merchants can insert their profile
+CREATE POLICY "Merchants can insert own profile"
 ON merchants FOR INSERT
-WITH CHECK (user_id = auth.uid());
+WITH CHECK (auth.uid() = user_id);
 
--- Admins can view all merchants
-CREATE POLICY "Admins can view all merchants"
-ON merchants FOR SELECT
-USING (
-  EXISTS (
-    SELECT 1 FROM profiles
-    WHERE profiles.id = auth.uid()
-    AND profiles.user_type = 'admin'
-  )
-);
-
--- Admins can update any merchant
-CREATE POLICY "Admins can update merchants"
-ON merchants FOR UPDATE
+-- Admins can do everything with merchants
+CREATE POLICY "Admins can manage all merchants"
+ON merchants FOR ALL
 USING (
   EXISTS (
     SELECT 1 FROM profiles
@@ -191,8 +152,8 @@ USING (
 -- 3. PRODUCTS TABLE
 -- ============================================
 
--- Anyone can view active products from approved merchants
-CREATE POLICY "Anyone can view active products"
+-- Everyone can view active products from approved merchants
+CREATE POLICY "Active products are viewable by everyone"
 ON products FOR SELECT
 USING (
   is_active = true
@@ -200,11 +161,12 @@ USING (
     SELECT 1 FROM merchants
     WHERE merchants.id = products.merchant_id
     AND merchants.approval_status = 'approved'
-    AND merchants.is_banned = false
+    AND merchants.subscription_status = 'active'
+    AND merchants.is_banned = FALSE
   )
 );
 
--- Merchants can view their own products
+-- Merchants can view their own products (even inactive)
 CREATE POLICY "Merchants can view own products"
 ON products FOR SELECT
 USING (
@@ -215,32 +177,9 @@ USING (
   )
 );
 
--- Merchants can create products
-CREATE POLICY "Merchants can create products"
-ON products FOR INSERT
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM merchants
-    WHERE merchants.id = products.merchant_id
-    AND merchants.user_id = auth.uid()
-    AND merchants.approval_status = 'approved'
-  )
-);
-
--- Merchants can update their products
-CREATE POLICY "Merchants can update own products"
-ON products FOR UPDATE
-USING (
-  EXISTS (
-    SELECT 1 FROM merchants
-    WHERE merchants.id = products.merchant_id
-    AND merchants.user_id = auth.uid()
-  )
-);
-
--- Merchants can delete their products
-CREATE POLICY "Merchants can delete own products"
-ON products FOR DELETE
+-- Merchants can manage their own products (INSERT, UPDATE, DELETE)
+CREATE POLICY "Merchants can manage own products"
+ON products FOR ALL
 USING (
   EXISTS (
     SELECT 1 FROM merchants
@@ -254,15 +193,12 @@ USING (
 -- ============================================
 
 -- Customers can view their own orders
-CREATE POLICY "Customers can view own orders"
-ON orders FOR SELECT
-USING (customer_id = auth.uid());
-
--- Merchants can view orders for their products
-CREATE POLICY "Merchants can view own orders"
+-- Merchants can view orders for their store
+CREATE POLICY "Users can view own orders"
 ON orders FOR SELECT
 USING (
-  EXISTS (
+  auth.uid() = customer_id
+  OR EXISTS (
     SELECT 1 FROM merchants
     WHERE merchants.id = orders.merchant_id
     AND merchants.user_id = auth.uid()
@@ -272,10 +208,15 @@ USING (
 -- Customers can create orders
 CREATE POLICY "Customers can create orders"
 ON orders FOR INSERT
-WITH CHECK (customer_id = auth.uid());
+WITH CHECK (auth.uid() = customer_id);
 
--- Merchants can update order status
-CREATE POLICY "Merchants can update order status"
+-- Customers can update their own orders (cancel, etc.)
+CREATE POLICY "Customers can update own orders"
+ON orders FOR UPDATE
+USING (auth.uid() = customer_id);
+
+-- Merchants can update orders for their store
+CREATE POLICY "Merchants can update store orders"
 ON orders FOR UPDATE
 USING (
   EXISTS (
@@ -289,8 +230,8 @@ USING (
 -- 5. ORDER_ITEMS TABLE
 -- ============================================
 
--- Users can view items from their orders
-CREATE POLICY "Users can view own order items"
+-- Users can view order items if they can view the order
+CREATE POLICY "Order items viewable through orders"
 ON order_items FOR SELECT
 USING (
   EXISTS (
@@ -307,8 +248,8 @@ USING (
   )
 );
 
--- Allow order item creation
-CREATE POLICY "Allow order items creation"
+-- Customers can create order items for their orders
+CREATE POLICY "Customers can create order items"
 ON order_items FOR INSERT
 WITH CHECK (
   EXISTS (
@@ -325,31 +266,30 @@ WITH CHECK (
 -- Users can view their own notifications
 CREATE POLICY "Users can view own notifications"
 ON notifications FOR SELECT
-USING (user_id = auth.uid());
+USING (auth.uid() = user_id);
 
 -- Users can update their own notifications (mark as read)
 CREATE POLICY "Users can update own notifications"
 ON notifications FOR UPDATE
-USING (user_id = auth.uid());
+USING (auth.uid() = user_id);
 
 -- Users can delete their own notifications
 CREATE POLICY "Users can delete own notifications"
 ON notifications FOR DELETE
-USING (user_id = auth.uid());
+USING (auth.uid() = user_id);
 
--- Service role can create notifications (for system)
--- Note: INSERT policies are handled via service_role key in backend
+-- Service role can create notifications (handled via backend with service_role key)
 
 -- ============================================
 -- 7. MERCHANT_CATEGORIES TABLE
 -- ============================================
 
--- Anyone can view active categories
-CREATE POLICY "Anyone can view active categories"
+-- Everyone can view active merchant categories
+CREATE POLICY "Anyone can view active merchant categories"
 ON merchant_categories FOR SELECT
 USING (is_active = true);
 
--- Merchants can view their own categories
+-- Merchants can view their own categories (even inactive)
 CREATE POLICY "Merchants can view own categories"
 ON merchant_categories FOR SELECT
 USING (
@@ -360,31 +300,9 @@ USING (
   )
 );
 
--- Merchants can create categories
-CREATE POLICY "Merchants can create categories"
-ON merchant_categories FOR INSERT
-WITH CHECK (
-  EXISTS (
-    SELECT 1 FROM merchants
-    WHERE merchants.id = merchant_categories.merchant_id
-    AND merchants.user_id = auth.uid()
-  )
-);
-
--- Merchants can update their categories
-CREATE POLICY "Merchants can update own categories"
-ON merchant_categories FOR UPDATE
-USING (
-  EXISTS (
-    SELECT 1 FROM merchants
-    WHERE merchants.id = merchant_categories.merchant_id
-    AND merchants.user_id = auth.uid()
-  )
-);
-
--- Merchants can delete their categories
-CREATE POLICY "Merchants can delete own categories"
-ON merchant_categories FOR DELETE
+-- Merchants can manage their own categories
+CREATE POLICY "Merchants can manage own categories"
+ON merchant_categories FOR ALL
 USING (
   EXISTS (
     SELECT 1 FROM merchants
@@ -396,14 +314,11 @@ USING (
 -- ============================================
 -- 8. PICKUP_REWARDS TABLE
 -- ============================================
+-- NOTE: pickup_rewards tracks merchant rewards, not customer rewards
+-- Columns: merchant_id, points_earned, reward_type, description, order_id
 
--- Customers can view their own rewards
-CREATE POLICY "Customers can view own rewards"
-ON pickup_rewards FOR SELECT
-USING (customer_id = auth.uid());
-
--- Merchants can view rewards for their store
-CREATE POLICY "Merchants can view store rewards"
+-- Merchants can view their own pickup rewards
+CREATE POLICY "Merchants can view own pickup rewards"
 ON pickup_rewards FOR SELECT
 USING (
   EXISTS (
@@ -413,46 +328,54 @@ USING (
   )
 );
 
+-- Admins can view all pickup rewards
+CREATE POLICY "Admins can view all pickup rewards"
+ON pickup_rewards FOR SELECT
+USING (
+  EXISTS (
+    SELECT 1 FROM profiles
+    WHERE profiles.id = auth.uid()
+    AND profiles.user_type = 'admin'
+  )
+);
+
+-- Service role can create pickup rewards (via trigger)
+
 -- ============================================
 -- 9. SUBSCRIPTION_TIERS TABLE
 -- ============================================
 
--- Everyone can view subscription tiers (public info)
+-- Everyone can view subscription tiers (public pricing info)
 CREATE POLICY "Anyone can view subscription tiers"
 ON subscription_tiers FOR SELECT
 USING (true);
 
 -- ============================================
--- 10. WEBHOOK_LOGS TABLE (Optional - if exists)
+-- 10. REVIEWS TABLE
 -- ============================================
 
--- Only service role can access webhook logs
--- (No user-level policies needed)
--- This table may not exist in all databases
+-- Everyone can view all reviews
+CREATE POLICY "Reviews are viewable by everyone"
+ON reviews FOR SELECT
+USING (true);
 
--- ============================================
--- 11. REVIEWS TABLE (if exists)
--- ============================================
-
--- ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
-
--- Anyone can view approved reviews
--- CREATE POLICY "Anyone can view approved reviews"
--- ON reviews FOR SELECT
--- USING (is_approved = true);
-
--- Users can create reviews
--- CREATE POLICY "Users can create reviews"
--- ON reviews FOR INSERT
--- WITH CHECK (customer_id = auth.uid());
+-- Users can create reviews for their own orders
+CREATE POLICY "Users can create reviews for their orders"
+ON reviews FOR INSERT
+WITH CHECK (auth.uid() = customer_id);
 
 -- Users can update their own reviews
--- CREATE POLICY "Users can update own reviews"
--- ON reviews FOR UPDATE
--- USING (customer_id = auth.uid());
+CREATE POLICY "Users can update own reviews"
+ON reviews FOR UPDATE
+USING (auth.uid() = customer_id);
+
+-- Users can delete their own reviews
+CREATE POLICY "Users can delete own reviews"
+ON reviews FOR DELETE
+USING (auth.uid() = customer_id);
 
 -- ============================================
--- VERIFICATION
+-- VERIFICATION QUERY
 -- ============================================
 
 -- Verify RLS is enabled on all tables
@@ -462,13 +385,33 @@ SELECT
   rowsecurity as "RLS Enabled"
 FROM pg_tables
 WHERE schemaname = 'public'
+AND tablename IN (
+  'profiles',
+  'merchants',
+  'products',
+  'orders',
+  'order_items',
+  'notifications',
+  'merchant_categories',
+  'pickup_rewards',
+  'subscription_tiers',
+  'reviews'
+)
 ORDER BY tablename;
 
 -- ============================================
 -- DONE!
 -- ============================================
 -- All tables are now secured with Row Level Security
--- Users can only access their own data
--- Merchants can only access their store data
--- Admins can access all data
--- Public can view approved/active content only
+-- Policies are based on the actual database schema:
+--
+-- ✅ profiles: Everyone can view, users can update own
+-- ✅ merchants: Public sees approved/active, merchants manage own, admins manage all
+-- ✅ products: Public sees active products, merchants manage own
+-- ✅ orders: Customers and merchants see their own orders
+-- ✅ order_items: Viewable through orders
+-- ✅ notifications: Users see and manage their own
+-- ✅ merchant_categories: Public sees active, merchants manage own
+-- ✅ pickup_rewards: Merchants see their own rewards (merchant_id based)
+-- ✅ subscription_tiers: Public can view all
+-- ✅ reviews: Public can view, users can create/update/delete own
